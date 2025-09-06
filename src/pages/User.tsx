@@ -579,21 +579,7 @@ const User = () => {
                                 Numbers Drawn: {ticket.games.game_data.drawn_numbers.length}/90
                               </p>
                             )}
-                           {ticket.numbers && (
-                             <div className="mt-2">
-                               <p className="text-xs text-muted-foreground mb-1">Your Numbers:</p>
-                               <div className="flex flex-wrap gap-1">
-                                 {(Array.isArray(ticket.numbers) ? 
-                                   (Array.isArray(ticket.numbers[0]) ? ticket.numbers.flat() : ticket.numbers) : 
-                                   []
-                                 ).slice(0, 15).map((num, idx) => (
-                                   <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
-                                     {num}
-                                   </span>
-                                 ))}
-                               </div>
-                             </div>
-                           )}
+                           <p className="font-medium text-blue-600">3×9 Tambola Ticket</p>
                           </div>
                         </div>
                         

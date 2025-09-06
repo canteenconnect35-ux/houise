@@ -19,7 +19,8 @@ import {
   Play,
   Pause,
   Calendar,
-  Timer
+  Timer,
+  Ticket
 } from "lucide-react";
 
 const Admin = () => {
@@ -650,6 +651,15 @@ const Admin = () => {
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           View
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.location.href = `/game/${game.id}/tickets`}
+                        >
+                          <Ticket className="w-4 h-4 mr-2" />
+                          Tickets
                         </Button>
                         
                         {game.status === "waiting" && (
