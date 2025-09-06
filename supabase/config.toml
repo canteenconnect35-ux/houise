@@ -1,0 +1,7 @@
+project_id = "bwtiuxequfzjjrnkjsyt"
+
+[functions.buy-ticket]
+verify_jwt = false
+
+[functions.claim-prize]
+verify_jwt = false
