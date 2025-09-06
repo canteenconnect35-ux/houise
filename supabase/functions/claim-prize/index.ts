@@ -37,18 +37,21 @@ serve(async (req) => {
       throw new Error('Prize already claimed')
     }
 
-    // Ensure ticket numbers is a flat array of 15 numbers
-    let ticketNumbers = ticket.numbers;
-    if (Array.isArray(ticketNumbers) && Array.isArray(ticketNumbers[0])) {
-      ticketNumbers = ticketNumbers.flat();
+    // Ensure ticket numbers is in proper 3x9 grid format
+    let ticketGrid = ticket.numbers;
+    if (!Array.isArray(ticketGrid) || ticketGrid.length !== 3) {
+      throw new Error('Invalid ticket format - must be 3x9 grid')
     }
     
-    if (!Array.isArray(ticketNumbers) || ticketNumbers.length !== 15) {
-      throw new Error('Invalid ticket format')
+    // Verify each row has 9 columns
+    for (let i = 0; i < 3; i++) {
+      if (!Array.isArray(ticketGrid[i]) || ticketGrid[i].length !== 9) {
+        throw new Error('Invalid ticket format - each row must have 9 columns')
+      }
     }
 
     // Validate prize claim
-    const isValid = validatePrizeClaim(ticketNumbers, drawnNumbers, prizeType)
+    const isValid = validatePrizeClaim(ticketGrid, drawnNumbers, prizeType)
     
     if (!isValid) {
       return new Response(JSON.stringify({ success: false, message: 'Invalid prize claim' }), {
@@ -100,12 +103,12 @@ serve(async (req) => {
   }
 })
 
-function validatePrizeClaim(ticketNumbers: number[], drawnNumbers: number[], prizeType: string): boolean {
-  // Filter out zero/empty numbers and find matches
-  const validTicketNumbers = ticketNumbers.filter(num => num > 0);
-  const matchedNumbers = validTicketNumbers.filter(num => drawnNumbers.includes(num));
+function validatePrizeClaim(ticketGrid: number[][], drawnNumbers: number[], prizeType: string): boolean {
+  // Get all valid numbers from the ticket
+  const allTicketNumbers = ticketGrid.flat().filter(num => num > 0);
+  const matchedNumbers = allTicketNumbers.filter(num => drawnNumbers.includes(num));
   
-  console.log(`Validating ${prizeType}: ${matchedNumbers.length} matches out of ${validTicketNumbers.length} valid numbers`);
+  console.log(`Validating ${prizeType}: ${matchedNumbers.length} matches out of ${allTicketNumbers.length} valid numbers`);
   
   switch (prizeType) {
     case 'early_five':
@@ -113,26 +116,26 @@ function validatePrizeClaim(ticketNumbers: number[], drawnNumbers: number[], pri
       return matchedNumbers.length >= 5;
       
     case 'top_line':
-      // Top line: first 5 numbers of the ticket (positions 0-4)
-      const topLineNumbers = ticketNumbers.slice(0, 5).filter(num => num > 0);
+      // Top line: all numbers in row 0
+      const topLineNumbers = ticketGrid[0].filter(num => num > 0);
       const topLineMatches = topLineNumbers.filter(num => drawnNumbers.includes(num));
-      return topLineMatches.length === topLineNumbers.length && topLineNumbers.length > 0;
+      return topLineMatches.length === topLineNumbers.length && topLineNumbers.length === 5;
       
     case 'middle_line':
-      // Middle line: middle 5 numbers of the ticket (positions 5-9)
-      const middleLineNumbers = ticketNumbers.slice(5, 10).filter(num => num > 0);
+      // Middle line: all numbers in row 1
+      const middleLineNumbers = ticketGrid[1].filter(num => num > 0);
       const middleLineMatches = middleLineNumbers.filter(num => drawnNumbers.includes(num));
-      return middleLineMatches.length === middleLineNumbers.length && middleLineNumbers.length > 0;
+      return middleLineMatches.length === middleLineNumbers.length && middleLineNumbers.length === 5;
       
     case 'bottom_line':
-      // Bottom line: last 5 numbers of the ticket (positions 10-14)
-      const bottomLineNumbers = ticketNumbers.slice(10, 15).filter(num => num > 0);
+      // Bottom line: all numbers in row 2
+      const bottomLineNumbers = ticketGrid[2].filter(num => num > 0);
       const bottomLineMatches = bottomLineNumbers.filter(num => drawnNumbers.includes(num));
-      return bottomLineMatches.length === bottomLineNumbers.length && bottomLineNumbers.length > 0;
+      return bottomLineMatches.length === bottomLineNumbers.length && bottomLineNumbers.length === 5;
       
     case 'full_house':
-      // Full house: all numbers on the ticket
-      return matchedNumbers.length === validTicketNumbers.length && validTicketNumbers.length === 15;
+      // Full house: all 15 numbers on the ticket
+      return matchedNumbers.length === allTicketNumbers.length && allTicketNumbers.length === 15;
       
     default:
       return false;

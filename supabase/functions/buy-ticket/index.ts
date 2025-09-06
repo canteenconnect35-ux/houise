@@ -19,8 +19,8 @@ serve(async (req) => {
 
     const { gameId, userId, ticketPrice } = await req.json()
 
-    // Generate tambola ticket with exactly 15 numbers
-    const numbers = generateTambolaTicket()
+    // Generate tambola ticket with proper 3x9 format
+    const ticketGrid = generateTambolaTicket()
 
     // Start transaction
     const { data: user, error: userError } = await supabase
@@ -50,7 +50,7 @@ serve(async (req) => {
       .insert({
         game_id: gameId,
         user_id: userId,
-        numbers: numbers,
+        numbers: ticketGrid,
         claimed_prizes: {}
       })
 
@@ -96,7 +96,7 @@ serve(async (req) => {
         game_id: gameId
       })
 
-    return new Response(JSON.stringify({ success: true, numbers }), {
+    return new Response(JSON.stringify({ success: true, numbers: ticketGrid }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
@@ -108,36 +108,97 @@ serve(async (req) => {
   }
 })
 
-function generateTambolaTicket(): number[] {
-  // Generate exactly 15 unique numbers between 1-90
-  const allNumbers = Array.from({ length: 90 }, (_, i) => i + 1);
-  const selectedNumbers: number[] = [];
+function generateTambolaTicket(): number[][] {
+  // Create 3x9 grid initialized with zeros
+  const grid: number[][] = Array(3).fill(null).map(() => Array(9).fill(0));
   
-  // Shuffle the array using Fisher-Yates algorithm
-  for (let i = allNumbers.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
+  // Column ranges: 0-9, 10-19, 20-29, ..., 80-89
+  const columnRanges = [
+    [1, 9],   // Column 0: 1-9 (we avoid 0 for better gameplay)
+    [10, 19], // Column 1: 10-19
+    [20, 29], // Column 2: 20-29
+    [30, 39], // Column 3: 30-39
+    [40, 49], // Column 4: 40-49
+    [50, 59], // Column 5: 50-59
+    [60, 69], // Column 6: 60-69
+    [70, 79], // Column 7: 70-79
+    [80, 90]  // Column 8: 80-90
+  ];
+  
+  // For each row, select exactly 5 columns to have numbers
+  for (let row = 0; row < 3; row++) {
+    // Randomly select 5 columns out of 9 for this row
+    const availableColumns = Array.from({ length: 9 }, (_, i) => i);
+    const selectedColumns: number[] = [];
+    
+    // Fisher-Yates shuffle to select 5 random columns
+    for (let i = 0; i < 5; i++) {
+      const randomIndex = Math.floor(Math.random() * availableColumns.length);
+      selectedColumns.push(availableColumns.splice(randomIndex, 1)[0]);
+    }
+    
+    // Sort selected columns for better visual arrangement
+    selectedColumns.sort((a, b) => a - b);
+    
+    // Assign numbers to selected columns
+    for (const col of selectedColumns) {
+      const [min, max] = columnRanges[col];
+      let number: number;
+      
+      // Generate unique number for this column across all rows
+      do {
+        number = Math.floor(Math.random() * (max - min + 1)) + min;
+      } while (isNumberUsedInColumn(grid, col, number));
+      
+      grid[row][col] = number;
+    }
   }
   
-  // Take the first 15 numbers
-  selectedNumbers.push(...allNumbers.slice(0, 15));
+  // Sort numbers within each column (top to bottom)
+  for (let col = 0; col < 9; col++) {
+    const columnNumbers = [];
+    for (let row = 0; row < 3; row++) {
+      if (grid[row][col] !== 0) {
+        columnNumbers.push(grid[row][col]);
+      }
+    }
+    
+    if (columnNumbers.length > 1) {
+      columnNumbers.sort((a, b) => a - b);
+      let numberIndex = 0;
+      for (let row = 0; row < 3; row++) {
+        if (grid[row][col] !== 0) {
+          grid[row][col] = columnNumbers[numberIndex++];
+        }
+      }
+    }
+  }
   
-  // Sort the numbers for better readability
-  selectedNumbers.sort((a, b) => a - b);
-  
-  // Verify we have exactly 15 unique numbers
-  if (selectedNumbers.length !== 15) {
-    console.error('Generated ticket does not have exactly 15 numbers');
+  // Verify the ticket has exactly 15 numbers
+  const totalNumbers = grid.flat().filter(num => num !== 0).length;
+  if (totalNumbers !== 15) {
+    console.error(`Generated ticket has ${totalNumbers} numbers instead of 15`);
     throw new Error('Failed to generate valid ticket');
   }
   
-  // Verify all numbers are unique
-  const uniqueNumbers = new Set(selectedNumbers);
-  if (uniqueNumbers.size !== 15) {
-    console.error('Generated ticket has duplicate numbers');
-    throw new Error('Failed to generate valid ticket');
+  // Verify each row has exactly 5 numbers
+  for (let row = 0; row < 3; row++) {
+    const rowNumbers = grid[row].filter(num => num !== 0).length;
+    if (rowNumbers !== 5) {
+      console.error(`Row ${row} has ${rowNumbers} numbers instead of 5`);
+      throw new Error('Failed to generate valid ticket');
+    }
   }
   
-  console.log('Generated 15-digit ticket:', selectedNumbers);
-  return selectedNumbers;
+  console.log('Generated proper Tambola ticket:', grid);
+  return grid;
+}
+
+function isNumberUsedInColumn(grid: number[][], col: number, number: number): boolean {
+  for (let row = 0; row < 3; row++) {
+    if (grid[row][col] === number) {
+      return true;
+    }
+  }
+  return false;
 }
